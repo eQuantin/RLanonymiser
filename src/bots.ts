@@ -51,5 +51,5 @@ export default [
     "Tex",
     "Viper",
     "Wolfman",
-    "Yuri"
-]
+    "Yuri",
+];

@@ -76,6 +76,7 @@ export class Ballchasing {
             },
         );
 
+        // Watch out for rate limits !
         if (response.status !== 200) {
             console.error(`Error: Received status ${response.status}`);
             throw new Error(

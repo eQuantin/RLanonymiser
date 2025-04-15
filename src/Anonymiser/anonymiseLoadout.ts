@@ -1,0 +1,35 @@
+export default (entry: any): void => {
+    entry["value"]["loadouts"]["blue"]["antenna"] = 0;
+    entry["value"]["loadouts"]["blue"]["decal"] = 0;
+    entry["value"]["loadouts"]["blue"]["engine_audio"] = 0;
+    entry["value"]["loadouts"]["blue"]["topper"] = 0;
+    entry["value"]["loadouts"]["blue"]["body"] = 23;
+    entry["value"]["loadouts"]["blue"]["goal_explosion"] = 1903;
+    entry["value"]["loadouts"]["blue"]["rocket_trail"] = 63;
+    entry["value"]["loadouts"]["blue"]["trail"] = 1948;
+    entry["value"]["loadouts"]["blue"]["wheels"] = 363;
+    entry["value"]["loadouts"]["blue"]["version"] = 28;
+    entry["value"]["loadouts"]["blue"]["unknown1"] = 0;
+    entry["value"]["loadouts"]["blue"]["unknown2"] = 0;
+    entry["value"]["loadouts"]["blue"]["unknown3"] = 6153;
+    entry["value"]["loadouts"]["blue"]["unknown4"] = 0;
+    entry["value"]["loadouts"]["blue"]["unknown5"] = 3270;
+    entry["value"]["loadouts"]["blue"]["unknown6"] = 0;
+    // Orange
+    entry["value"]["loadouts"]["orange"]["antenna"] = 0;
+    entry["value"]["loadouts"]["orange"]["decal"] = 0;
+    entry["value"]["loadouts"]["orange"]["engine_audio"] = 0;
+    entry["value"]["loadouts"]["orange"]["topper"] = 0;
+    entry["value"]["loadouts"]["orange"]["body"] = 23;
+    entry["value"]["loadouts"]["orange"]["goal_explosion"] = 1903;
+    entry["value"]["loadouts"]["orange"]["rocket_trail"] = 63;
+    entry["value"]["loadouts"]["orange"]["trail"] = 1948;
+    entry["value"]["loadouts"]["orange"]["wheels"] = 363;
+    entry["value"]["loadouts"]["orange"]["version"] = 28;
+    entry["value"]["loadouts"]["orange"]["unknown1"] = 0;
+    entry["value"]["loadouts"]["orange"]["unknown2"] = 0;
+    entry["value"]["loadouts"]["orange"]["unknown3"] = 6153;
+    entry["value"]["loadouts"]["orange"]["unknown4"] = 0;
+    entry["value"]["loadouts"]["orange"]["unknown5"] = 3270;
+    entry["value"]["loadouts"]["orange"]["unknown6"] = 0;
+};

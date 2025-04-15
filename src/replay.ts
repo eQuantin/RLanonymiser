@@ -1,7 +1,7 @@
 export type ReplayData = any;
 export type Player = any;
 
-export class Replay {
+export class ReplayInfo {
     constructor(private replayData: ReplayData) {}
 
     getPlayersName(): string[] {

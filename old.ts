@@ -125,12 +125,10 @@ function GeneratePlayerName(
         );
         botNames[nameIndex].savedPlayer = playerName;
         botNames[nameIndex].changed++;
-        return guestName !== null && playerName == guestName
-            ? { name: "Guest", botProductName: 999 }
-            : {
-                name: botNames[nameIndex].name,
-                botProductName: botNames[nameIndex].botProductName,
-            };
+        return guestName !== null && playerName == guestName ? { name: "Guest", botProductName: 999 } : {
+            name: botNames[nameIndex].name,
+            botProductName: botNames[nameIndex].botProductName,
+        };
     } else {
         botNames[playerIndex].changed++;
         return guestName !== null && playerName == guestName
@@ -416,8 +414,7 @@ function AnonymisePlayers(json: any) {
                                         "byte": [
                                             "OnlinePlatform",
                                             {
-                                                "Right":
-                                                    "OnlinePlatform_Unknown",
+                                                "Right": "OnlinePlatform_Unknown",
                                             },
                                         ],
                                     },
@@ -490,9 +487,7 @@ function AnonymisePlayers(json: any) {
     }
 
     const addedSize = botNames.map((x) =>
-        (x.savedPlayer !== null
-            ? x.savedPlayer.length - x.name.length
-            : x.name.length) * x.changed
+        (x.savedPlayer !== null ? x.savedPlayer.length - x.name.length : x.name.length) * x.changed
     ).reduce((x, y) => x + y);
     json.content.body.stream_size += addedSize * 2;
     json.content.size += addedSize * 2;

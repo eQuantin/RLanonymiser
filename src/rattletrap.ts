@@ -206,18 +206,33 @@ export class Rattletrap {
     }
 
     async encode(json: JSON.Object, replayPath: string): Promise<void> {
-        const buffer = new TextEncoder().encode(JSON.stringify(json) + "\n\r");
-        Deno.writeFileSync(`${this.workdir}/modified.json`, buffer);
+        const buffer = new TextEncoder().encode(JSON.stringify(json));
 
         const command = new Deno.Command(this.path, {
             args: ["-m", "encode", "-o", replayPath],
             stdin: "piped",
+            stdout: "piped",
+            stderr: "piped",
         });
 
         const child = command.spawn();
-        await child.stdin.getWriter().write(buffer);
+        const writer = child.stdin.getWriter();
+        await writer.write(buffer);
+        writer.releaseLock();
         await child.stdin.close();
 
-        const status = await child.status;
+        const { code, stdout, stderr } = await child.output();
+        if (code === 0) {
+            if (this.debug) {
+                console.debug("Writting modified json replay to file");
+                await Deno.writeFile(
+                    `${this.workdir}/modified.json`,
+                    buffer,
+                );
+                console.debug("Done writting modified json replay to file");
+            }
+        } else {
+            throw new TextDecoder().decode(stderr);
+        }
     }
 }

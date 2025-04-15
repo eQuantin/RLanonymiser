@@ -1,6 +1,13 @@
 {
-  "tasks": {
-    "dev": "deno run --watch src/index.ts"
-  },
-  "imports": {}
+    "tasks": {
+        "dev": "deno run --watch src/index.ts"
+    },
+    "imports": {},
+    "fmt": {
+        "useTabs": false,
+        "lineWidth": 120,
+        "indentWidth": 4,
+        "semiColons": true,
+        "singleQuote": false
+    }
 }
