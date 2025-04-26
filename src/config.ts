@@ -1,13 +1,44 @@
-import { Command } from "@cliffy/command";
+import { Command, ValidationError } from "@cliffy/command";
 import * as log from "jsr:@timepp/enhanced-deno-log";
 
+const BallchasingUrlRegex = new RegExp(/((https|http):\/\/ballchasing\.com\/replay\/.+)/);
+const WindowsPathRegex = new RegExp(/^(([a-zA-Z]{1}:|\\)(\\[^\\/<>:\|\*\?\"]+)+\.[^\\/<>:\|]{3,4})$/i);
+const LinuxPathRegex = new RegExp(/^(((?:\.\/|\.\.\/|\/)?(?:\.?\w+\/)*)(\.?\w+\.?\w+))$/);
+const DiscordWebhookRegex = new RegExp(/((https|http):\/\/discord\.com\/api\/webhooks\/\d{19}\/.+)/);
+
+export enum Locations {
+    EU = "EU",
+    NA = "NA",
+    MENA = "MENA",
+    OCE = "OCE",
+    SAM = "SAM",
+    APAC = "APAC",
+    SSA = "SSA",
+}
+
+export enum Playlist {}
+export enum Rank {}
+export enum Season {}
+
 export type Config = {
+    debug: boolean;
     inputMode: "BallchasingURL" | "FilePath" | "Random" | "stdin";
     outputMode: "FilePath" | "DiscordWebhook" | "stdout";
-    mode: "GuessTheGuest" | "GuessTheRank" | "ReplayValidation";
+    mode: "Guest" | "ReversedGuest" | "All" | "ReplayValidation";
     token: string | undefined;
+    playersNameMap: Map<string, string>;
     replayPath: string | undefined;
-    debug: boolean;
+    replayName: string;
+    replayOptions: {
+        playlist?: Playlist;
+        custom?: {
+            player?: string;
+            location?: Locations;
+            season?: Season;
+            rank?: Rank;
+        };
+        number: number;
+    };
 };
 
 export type Options = {
@@ -16,6 +47,13 @@ export type Options = {
     output?: string | undefined;
     input?: string | undefined;
     token?: string | undefined;
+    name?: string | undefined;
+    playlist?: string | undefined;
+    number?: number | undefined;
+    season?: string | undefined;
+    location?: string | undefined;
+    reversed?: true | undefined;
+    auto?: string | undefined;
     all?: true | undefined;
     guest?: true | undefined;
 };
@@ -30,59 +68,78 @@ async function command(): Promise<Options> {
         .globalOption("-d, --debug", "Enable debug output.")
         .globalOption("-v, --verbose", "Enable verbose output.")
         .globalOption(
-            "-o, --output=<output:string>",
-            "Allow either a discord webhook or a path. Defaults to stdout if argument isn't provided, see schema for stdout",
+            "-n, --name=<name:string>",
+            "Modified replay name, default to 'Anonymised replay #<ballchasing_id>",
         )
+        .group("IO options")
         .globalOption(
             "-i, --input=<input:string>",
-            "Allow either a ballchasing url or a path. Defaults to stdin if argument isn't provided, need a valid replay binary",
+            "Allow either a Ballchasing url or a path. Defaults to stdin if argument isn't provided, need a valid replay binary",
+            {
+                value: (value: string): string => {
+                    const matchWindowsPath = Deno.build.os === "windows" && value.match(WindowsPathRegex);
+                    const matchUnixPath = (Deno.build.os === "darwin" || Deno.build.os === "linux") &&
+                        value.match(LinuxPathRegex);
+                    const matchBallchasingUrl = value.match(BallchasingUrlRegex);
+                    if (!(matchWindowsPath || matchUnixPath || matchBallchasingUrl)) {
+                        throw new ValidationError(
+                            "Argument must be either a path to a replay file or a Ballchasing URL",
+                            { exitCode: 1 },
+                        );
+                    }
+                    return value;
+                },
+            },
         )
         .globalOption(
-            "-n, --name=<name:string>",
-            "modified replay name",
+            "-o, --output=<output:string>",
+            "Allow either a Discord webhook or a path. Defaults to stdout if argument isn't provided, see schema for stdout",
+            {
+                value: (value: string): string => {
+                    const matchWindowsPath = Deno.build.os === "windows" && value.match(WindowsPathRegex);
+                    const matchUnixPath = (Deno.build.os === "darwin" || Deno.build.os === "linux") &&
+                        value.match(LinuxPathRegex);
+                    const matchDiscordWebhook = value.match(DiscordWebhookRegex);
+                    if (!(matchWindowsPath || matchUnixPath || matchDiscordWebhook)) {
+                        throw new ValidationError(
+                            "Argument must be either a path to a replay file or a Discord webhook",
+                            { exitCode: 1 },
+                        );
+                    }
+                    return value;
+                },
+            },
         )
-        .globalOption(
-            "-p, --playlist=<playlist:string>",
+        .command(
+            "playlist",
             "Preconfigured playlist of ballchasing replays",
-            {
-                conflicts: ["input", "auto"],
-            },
         )
-        .globalOption(
-            "-a, --auto",
-            "Automaticaly select a replay from ballchasing",
-            {
-                conflicts: ["input", "playlist"],
-            },
-        )
-        .globalOption(
+        .global()
+        .arguments("<playlist:string>")
+        .option(
             "-N, --number=<number:number>",
-            "Number of replays to make",
-            {
-                depends: ["auto"],
-            },
+            "Number of replays to make, default to 1",
         )
-        .globalOption(
+        .command(
+            "random",
+            "Automaticaly select a replay from ballchasing", // should be a subcommand ?
+        )
+        .global()
+        .option(
+            "-N, --number=<number:number>",
+            "Number of replays to make, default to 1",
+        )
+        .option(
             "-s, --season=<season:string>",
-            "Season from which to select a replay",
-            {
-                depends: ["auto"],
-            },
+            "Season from which to select a replay', default to latest season supported",
         )
-        .globalOption(
+        .option(
             "-r, --rank=<rank:string>",
-            "Rank from which to select a replay",
-            {
-                depends: ["auto"],
-                conflicts: ["input"],
-            },
+            "Rank from which to select a replay, default to random",
         )
-        .globalOption(
+        .option(
             "-l, --location=<region:string>",
-            "Avaible regions ['EU', 'NA', 'MENA', 'OCE', 'SAM', 'APAC, 'SSA']",
-            {
-                depends: ["auto"],
-            },
+            "Avaible regions ['EU', 'NA', 'MENA', 'OCE', 'SAM', 'APAC, 'SSA'], default to random",
         )
         .command(
             "guest",
@@ -124,66 +181,12 @@ export default async (): Promise<Config> => {
         debug: false,
         token: Deno.env.has("TOKEN") ? Deno.env.get("TOKEN")! : options.token,
         replayPath: undefined,
+        playersNameMap: new Map([]),
+        replayName: "Anonymised replay #XX",
+        replayOptions: { number: 1 },
     };
 
     console.log("Options", options);
-
-    const BallchasingUrlRegex = new RegExp(/((https|http):\/\/ballchasing\.com\/replay\/.+)/);
-    const WindowsPathRegex = new RegExp(/^(([a-zA-Z]{1}:|\\)(\\[^\\/<>:\|\*\?\"]+)+\.[^\\/<>:\|]{3,4})$/i);
-    const LinuxPathRegex = new RegExp(/^(((?:\.\/|\.\.\/|\/)?(?:\.?\w+\/)*)(\.?\w+\.?\w+))$/);
-    const DiscordWebhookRegex = new RegExp(/((https|http):\/\/discord\.com\/api\/webhooks\/\d{19}\/.+)/);
-
-    // Input validation
-    const validInputPath: boolean = Deno.build.os === "windows"
-        ? !!options.input && !!options.input.match(WindowsPathRegex)
-        : (Deno.build.os === "darwin" || Deno.build.os === "linux")
-        ? !!options.input && !!options.input.match(LinuxPathRegex)
-        : false;
-
-    if (options.input == undefined) {
-        console.debug("stdin input mode selected");
-        config.inputMode = "stdin";
-    } else if (
-        options.input &&
-        (options.input.match(BallchasingUrlRegex) ||
-            validInputPath ||
-            options.input == "random")
-    ) {
-        if (options.input.match(BallchasingUrlRegex)) {
-            config.inputMode = "BallchasingURL";
-            config.replayPath = options.input;
-            console.debug("Ballchasing URL input mode selected");
-        } else if (validInputPath) {
-            // check presence of file, should check .replay file extension
-            const path = await Deno.realPath(options.input);
-            try {
-                await Deno.open(path);
-            } catch (err) {
-                console.error("An error occured while checking presence of replay file", { path, err });
-                Deno.exit(1);
-            }
-            config.inputMode = "FilePath";
-            config.replayPath = options.input;
-            console.debug("Replay file path input mode selected");
-        } else if (options.input == "random") {
-            config.inputMode = "Random";
-            console.debug("Random input mode selected");
-        }
-    } else {
-        console.error("Invalid input mode");
-        Deno.exit(0);
-    }
-
-    // Output validation
-    const validOutputPath: boolean = Deno.build.os === "windows"
-        ? !!options.output && !!options.output.match(WindowsPathRegex)
-        : (Deno.build.os === "darwin" || Deno.build.os === "linux")
-        ? !!options.output && !!options.output.match(LinuxPathRegex)
-        : false;
-    if (options.output == undefined) {
-        console.debug("stdout output mode selected");
-        config.outputMode = "stdout";
-    }
 
     if (
         !(Deno.env.has("TOKEN") || options.token) &&

@@ -1,3 +1,4 @@
+import config from "./config.ts";
 import main from "./main.ts";
 
 /*  TODOS
@@ -7,6 +8,7 @@ import main from "./main.ts";
  */
 
 try {
+    await config();
     // const ballchasingId = options.input!.split("/")[4];
     // await main(ballchasingId, ballchasingToken, options.debug);
 } catch (err) {

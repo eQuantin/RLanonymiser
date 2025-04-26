@@ -1,4 +1,4 @@
-import anoContent from "./content.ts";
+import anoContent, { Content } from "./content.ts";
 import { resetBotNames } from "./generatePlayerName.ts";
 import anoHeader, { Header } from "./header.ts";
 
@@ -52,8 +52,8 @@ export type StructValue<T> = {
 };
 
 export type Replay = {
-    $schema: any;
-    content: any;
+    $schema: never;
+    content: Content;
     header: Header;
 };
 
