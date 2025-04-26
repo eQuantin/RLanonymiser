@@ -2,7 +2,9 @@
     "tasks": {
         "dev": "deno run --watch src/index.ts"
     },
-    "imports": {},
+    "imports": {
+        "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.7"
+    },
     "fmt": {
         "useTabs": false,
         "lineWidth": 120,

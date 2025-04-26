@@ -149,7 +149,7 @@ export class Rattletrap {
         console.info("Archive decompression completed");
     }
 
-    async decodeByBin(replayBin: Uint8Array): Promise<JSON.Value> {
+    async decode(replayBin: Uint8Array): Promise<JSON.Value> {
         console.debug("Decoding replay binaries");
         const command = new Deno.Command(this.path, {
             args: ["-c", "-m", "decode"],
@@ -178,30 +178,6 @@ export class Rattletrap {
             return json;
         } else {
             throw new TextDecoder().decode(stderr);
-        }
-    }
-
-    async decodeByPath(replayPath: string): Promise<JSON.Value> {
-        console.debug("Decoding replay binaries");
-        const command = new Deno.Command(this.path, {
-            args: ["-c", "-m", "decode", "-i", replayPath],
-            stdout: "piped",
-            stderr: "piped",
-        });
-
-        const { code, stdout, stderr } = await command.output();
-        if (code === 0) {
-            if (this.debug) {
-                console.debug("Writting raw json replay to file");
-                Deno.writeFileSync(`${this.workdir}/raw.json`, stdout);
-            }
-            return JSON.stringify(new TextDecoder().decode(stdout));
-        } else {
-            console.error(
-                "An error occured while decoding replay file",
-                stderr,
-            );
-            throw new Error();
         }
     }
 

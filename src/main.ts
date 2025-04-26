@@ -180,7 +180,7 @@ export default async function (
     console.info("Decoding replay binaries");
     let replayJson: Replay;
     try {
-        replayJson = await rattletrap.decodeByBin(replay.bin) as Replay;
+        replayJson = await rattletrap.decode(replay.bin) as Replay;
     } catch (err) {
         console.error("An error occured while decoding replay binaries", err);
         Deno.exit(1);
