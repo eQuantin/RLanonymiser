@@ -1,5 +1,4 @@
-import config from "./config.ts";
-import main from "./main.ts";
+import command from "./Commands/default.ts";
 
 /*  TODOS
  *  -> Create a replay cache to avoid ballchasing rate limits and to avoid anonymising the same replay multiple times
@@ -8,9 +7,7 @@ import main from "./main.ts";
  */
 
 try {
-    await config();
-    // const ballchasingId = options.input!.split("/")[4];
-    // await main(ballchasingId, ballchasingToken, options.debug);
+    await command();
 } catch (err) {
     console.error(err);
     Deno.exit(1);
