@@ -4,9 +4,9 @@ import all from "./all.ts";
 import main from "../main.ts";
 import playlist from "./playlist.ts";
 import random from "./random.ts";
-import { BallchasingUrlRegex, DiscordWebhookRegex, LinuxPathRegex, WindowsPathRegex } from "../config.ts";
+import { BallchasingUrlRegex, DiscordWebhookRegex, pathRegex } from "../config.ts";
 
-export const NAME = "";
+export const NAME = "Anonymiser";
 
 export default async () => {
     const nodes: string[] = [];
@@ -15,12 +15,13 @@ export default async () => {
         .name(NAME)
         .version("1.0.0")
         .description("A simple CLI tool to anonymise your Rocket League replays")
-        .env("TOKEN=<TOKEN:string>", "Set your ballchasing token for api access")
+        .env("TOKEN=<TOKEN:string>", "Set your ballchasing token for api access, support .env files")
+        .globalOption("-t, --token", "Token for Ballchasing API, setting TOKEN in env is recommanded")
         .globalOption("-d, --debug", "Enable debug output.")
         .globalOption("-v, --verbose", "Enable verbose output.")
         .globalOption(
             "-m, --replayName=<replayName:string>",
-            "Modify replay name, default to 'Anonymised replay'",
+            "Modify replay name, default to 'Anonymised replay #<uuid>'",
         )
         .group("IO options")
         .globalOption(
@@ -29,11 +30,9 @@ export default async () => {
             {
                 value: (value: string | true): string | true => {
                     if (typeof value == "string") {
-                        const matchWindowsPath = Deno.build.os === "windows" && value.match(WindowsPathRegex);
-                        const matchUnixPath = (Deno.build.os === "darwin" || Deno.build.os === "linux") &&
-                            value.match(LinuxPathRegex);
-                        const matchBallchasingUrl = value.match(BallchasingUrlRegex);
-                        if (!(matchWindowsPath || matchUnixPath || matchBallchasingUrl)) {
+                        const matchPath = pathRegex.test(value);
+                        const matchBallchasingUrl = BallchasingUrlRegex.test(value);
+                        if (!matchPath && !matchBallchasingUrl) {
                             throw new ValidationError(
                                 "Argument must be either a path to a replay file or a Ballchasing URL",
                                 { exitCode: 1 },
@@ -50,11 +49,9 @@ export default async () => {
             {
                 value: (value: string | true): string | true => {
                     if (typeof value == "string") {
-                        const matchWindowsPath = Deno.build.os === "windows" && value.match(WindowsPathRegex);
-                        const matchUnixPath = (Deno.build.os === "darwin" || Deno.build.os === "linux") &&
-                            value.match(LinuxPathRegex);
-                        const matchDiscordWebhook = value.match(DiscordWebhookRegex);
-                        if (!(matchWindowsPath || matchUnixPath || matchDiscordWebhook)) {
+                        const matchPath = pathRegex.test(value);
+                        const matchDiscordWebhook = DiscordWebhookRegex.test(value);
+                        if (!matchPath && !matchDiscordWebhook) {
                             throw new ValidationError(
                                 "Argument must be either a path to a replay file or a Discord webhook",
                                 { exitCode: 1 },
@@ -65,8 +62,8 @@ export default async () => {
                 },
             },
         )
-        .action((options) => {
-            main(options);
+        .action(async (options) => {
+            await main(options);
         })
         .command("playlist", playlist(nodes))
         .command("random", random(nodes))

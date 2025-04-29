@@ -1,67 +1,12 @@
 import { Command, ValidationError } from "@cliffy/command";
 import main from "../main.ts";
+import { isValidSeason, LATEST_SEASON, Locations, Ranks, validLocations, validRanks } from "../config.ts";
 
 export const NAME = "random";
 
-export const validLocations = [
-    "EU",
-    "NA",
-    "MENA",
-    "OCE",
-    "SAM",
-    "APAC",
-    "SSA",
-] as const;
-export type Locations = (typeof validLocations)[number];
-
-export const validRanks = [
-    "unranked",
-    "b1",
-    "b2",
-    "b3",
-    "s1",
-    "s2",
-    "s3",
-    "g1",
-    "g2",
-    "g3",
-    "p1",
-    "p2",
-    "p3",
-    "d1",
-    "d2",
-    "d3",
-    "c1",
-    "c2",
-    "c3",
-    "gc1",
-    "gc2",
-    "gc3",
-    "ssl",
-] as const;
-export type Ranks = (typeof validRanks)[number];
-
-// Constants for season limits
-const PAID_SEASON_MIN = 1;
-const PAID_SEASON_MAX = 14;
-const FREE_SEASON_MIN = 1;
-const LATEST_SEASON = "f18";
-
-// Function to check if a season is valid
-const isValidSeason = (season: string): boolean => {
-    const isFree2Play = season.charAt(0).toLowerCase() === "f";
-    const seasonNumber = Number(season.slice(1));
-
-    if (isFree2Play) {
-        const latestSeasonNumber = Number(LATEST_SEASON.slice(1));
-        return seasonNumber >= FREE_SEASON_MIN && seasonNumber <= latestSeasonNumber;
-    } else {
-        return seasonNumber >= PAID_SEASON_MIN && seasonNumber <= PAID_SEASON_MAX;
-    }
-};
-
 export default (nodes: string[]) => {
-    nodes.push(NAME);
+    const clonedNodes = [...nodes];
+    clonedNodes.push(NAME);
     return new Command()
         .description("Automaticaly select a replay from ballchasing")
         .group("Misc options")
@@ -108,6 +53,7 @@ export default (nodes: string[]) => {
             },
         )
         .action(async (options) => {
-            await main({ ...options, ...nodes.map((parent) => ({ [parent]: true })) });
+            const parents = Object.fromEntries(clonedNodes.map((parent) => [parent, true]));
+            await main({ ...options, ...parents });
         });
 };

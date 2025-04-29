@@ -19,7 +19,7 @@ export class Rattletrap {
     version = "14.1.1";
     path = Deno.cwd() + "/rattletrap.exe";
 
-    constructor(private workdir: string, private debug: boolean = false) {}
+    constructor(private workdir?: string, private debug: boolean = false) {}
 
     osCompatibility(): boolean {
         if (
@@ -199,7 +199,7 @@ export class Rattletrap {
 
         const { code, stdout, stderr } = await child.output();
         if (code === 0) {
-            if (this.debug) {
+            if (this.debug && this.workdir) {
                 console.debug("Writting modified json replay to file");
                 await Deno.writeFile(
                     `${this.workdir}/modified.json`,

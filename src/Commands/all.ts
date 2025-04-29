@@ -6,12 +6,14 @@ import random from "./random.ts";
 export const NAME = "all";
 
 export default (nodes: string[]) => {
-    nodes.push(NAME);
+    const clonedNodes = [...nodes];
+    clonedNodes.push(NAME);
     return new Command()
         .description("Anonymise all players. See all --help for more options")
-        .command("playlist", playlist(nodes))
-        .command("random", random(nodes))
         .action(async (options) => {
-            await main({ ...options, ...nodes.map((parent) => ({ [parent]: true })) });
-        });
+            const parents = Object.fromEntries(clonedNodes.map((parent) => [parent, true]));
+            await main({ ...(options as any), ...parents });
+        })
+        .command("playlist", playlist(clonedNodes))
+        .command("random", random(clonedNodes));
 };

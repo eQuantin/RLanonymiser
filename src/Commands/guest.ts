@@ -6,7 +6,8 @@ import random from "./random.ts";
 export const NAME = "guest";
 
 export default (nodes: string[]) => {
-    nodes.push(NAME);
+    const clonedNodes = [...nodes];
+    clonedNodes.push(NAME);
     return new Command()
         .description("Anonymise all players, a selected player will be named Guest. See guest --help for more options")
         .group("Misc options")
@@ -14,9 +15,10 @@ export default (nodes: string[]) => {
             "--reversed",
             "All players will share the name of the selected player",
         )
-        .command("playlist", playlist(nodes))
-        .command("random", random(nodes))
         .action(async (options) => {
-            await main({ ...options, ...nodes.map((parent) => ({ [parent]: true })) });
-        });
+            const parents = Object.fromEntries(clonedNodes.map((parent) => [parent, true]));
+            await main({ ...options, ...parents });
+        })
+        .command("playlist", playlist(clonedNodes))
+        .command("random", random(clonedNodes));
 };

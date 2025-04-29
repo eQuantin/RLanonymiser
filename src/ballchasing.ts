@@ -16,11 +16,21 @@ export interface ReplayInfo {
 
 export class Ballchasing {
     protected ballchasingUrl = "https://ballchasing.com/api";
+    private ballchasingToken: string;
+
     constructor(
-        private ballchasingToken: string,
-        private workdir: string,
+        ballchasingToken?: string,
+        private workdir?: string,
         private debug: boolean = false,
-    ) {}
+    ) {
+        if (!debug && !workdir) {
+            throw new Error();
+        }
+        if (!ballchasingToken) {
+            throw new Error();
+        }
+        this.ballchasingToken = ballchasingToken;
+    }
 
     async ping(): Promise<number> {
         console.debug("Ping Ballchasing API", this.ballchasingUrl);
@@ -51,7 +61,7 @@ export class Ballchasing {
             throw new Error();
         } else {
             const arrayBuffer = await response.arrayBuffer();
-            if (this.debug) {
+            if (this.debug && this.workdir) {
                 Deno.writeFileSync(
                     `${this.workdir}/replayInfo.json`,
                     new Uint8Array(arrayBuffer),
@@ -86,7 +96,7 @@ export class Ballchasing {
 
         const arrayBuffer = await response.arrayBuffer();
 
-        if (this.debug) {
+        if (this.debug && this.workdir) {
             const path = `${this.workdir}/${ballchasingId}.replay`;
             Deno.writeFileSync(
                 path,

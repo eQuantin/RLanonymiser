@@ -3,122 +3,141 @@ import { stdin as input, stdout as output } from "node:process";
 
 import { Ballchasing } from "./ballchasing.ts";
 import { Rattletrap } from "./rattletrap.ts";
-import { Player, ReplayInfo } from "./replay.ts";
 import anonymiser, { Replay } from "./Anonymiser/anonymiser.ts";
 import Config, { Options } from "./config.ts";
 
 export default async function (options: Options) {
     const config = Config(options);
 
-    // const workdir = `replays/${ballchasingId}`;
-    // const rattletrap = new Rattletrap(workdir, debug);
-    // const ballchasing = new Ballchasing(ballchasingToken, workdir, debug);
+    // STEP 1 -> CREATE WORK DIRECTORY
+    console.info("Create work directory to store logs and replays");
+    let workdir: string | undefined;
+    try {
+        const path = `replays/${config.uuid}`;
+        Deno.mkdirSync(path, { recursive: true });
+        workdir = await Deno.realPath(path);
+    } catch (err) {
+        if (!(err instanceof Deno.errors.AlreadyExists)) {
+            throw err;
+        } else {
+            console.debug("Dir already exist.");
+        }
+    }
+    if (workdir == undefined) {
+        throw new Error();
+    }
 
-    // // STEP 1 -> INSTALL RATTLETRAP
-    // console.info("Checking Rattletrap installation and version");
-    // try {
-    //     const currentRattletrapVersion = await rattletrap
-    //         .checkRattletrapVersion();
-    //     if (currentRattletrapVersion == null) {
-    //         console.debug(
-    //             "Rattletrap isn't installed. Installing Rattletrap ...",
-    //         );
-    //         await rattletrap.downloadRattletrap();
-    //     } else if (rattletrap.version != currentRattletrapVersion) {
-    //         console.debug(
-    //             `Invalid Rattletrap version, expected version ${rattletrap.version} but got version ${currentRattletrapVersion}, updating/downgrading Rattletrap ...`,
-    //         );
-    //         Deno.removeSync(rattletrap.path);
-    //         await rattletrap.downloadRattletrap();
-    //     }
-    // } catch (err) {
-    //     console.error(
-    //         "An error occured while checking or installing Rattletrap",
-    //         err,
-    //     );
-    //     Deno.exit(1);
-    // } finally {
-    //     console.debug(
-    //         "Final Rattletrap version check in case an installation occured",
-    //     );
-    //     const currentRattletrapVersion = await rattletrap
-    //         .checkRattletrapVersion();
+    const rattletrap = new Rattletrap(workdir, options.debug);
 
-    //     if (
-    //         currentRattletrapVersion == null ||
-    //         rattletrap.version != currentRattletrapVersion
-    //     ) {
-    //         console.error(
-    //             "Rattletrap version doesn't match the required version, exiting",
-    //         );
-    //         Deno.exit(1);
-    //     } else {
-    //         console.debug(
-    //             `Rattletrap is up to date with version ${currentRattletrapVersion}`,
-    //         );
-    //     }
-    // }
+    // STEP 2 -> INSTALL RATTLETRAP
+    console.info("Checking Rattletrap installation and version");
+    try {
+        const currentRattletrapVersion = await rattletrap
+            .checkRattletrapVersion();
+        if (currentRattletrapVersion == null) {
+            console.debug(
+                "Rattletrap isn't installed. Installing Rattletrap ...",
+            );
+            await rattletrap.downloadRattletrap();
+        } else if (rattletrap.version != currentRattletrapVersion) {
+            console.debug(
+                `Invalid Rattletrap version, expected version ${rattletrap.version} but got version ${currentRattletrapVersion},
+                    updating/downgrading Rattletrap ...`,
+            );
+            Deno.removeSync(rattletrap.path);
+            await rattletrap.downloadRattletrap();
+        }
+    } catch (err) {
+        console.error(
+            "An error occured while checking or installing Rattletrap",
+            err,
+        );
+        throw new Error();
+    }
 
-    // // STEP 2 -> CHECK BALLCHASING API AVAIBILITY
-    // console.info("Check avaibility of Ballchasing API");
-    // let ballchasingStatus: number;
-    // try {
-    //     ballchasingStatus = await ballchasing.ping();
-    //     switch (ballchasingStatus) {
-    //         case 200:
-    //             console.debug(
-    //                 "Ballchasing API is avaible and we are authorized",
-    //             );
-    //             break;
-    //         case 401:
-    //             console.error("Invalid ballchasing token, exiting");
-    //             Deno.exit(0);
-    //             break;
-    //         case 500:
-    //             console.error("Ballchasing API is unavaible, exiting");
-    //             Deno.exit(0);
-    //             break;
-    //         default:
-    //             console.debug(
-    //                 "Unsuported status code while pinging Ballchasing API, exiting",
-    //                 ballchasingStatus,
-    //             );
-    //             Deno.exit(0);
-    //             break;
-    //     }
-    // } catch (err) {
-    //     console.error("An error occured while pinging ballchasing api", err);
-    //     Deno.exit(1);
-    // }
+    // STEP 3 -> RETRIEVE REPLAYY BINARIES
+    let replayBin: Uint8Array | undefined;
+    if (config.inputMode === "BallchasingURL" || config.inputMode === "Random") {
+        const ballchasing = new Ballchasing(config.token, workdir, options.debug);
 
-    // // STEP 3 -> CREATE WORK DIRECTORY
-    // console.info("Create work directory to store logs and replays");
-    // try {
-    //     Deno.mkdirSync(workdir, { recursive: true });
-    // } catch (err) {
-    //     if (!(err instanceof Deno.errors.AlreadyExists)) {
-    //         console.error(err);
-    //         Deno.exit(1);
-    //     } else {
-    //         console.debug("Dir already exist.", workdir);
-    //     }
-    // }
+        // CHECK BALLCHASING API AVAIBILITY
+        console.info("Check avaibility of Ballchasing API");
+        let ballchasingStatus: number;
+        try {
+            ballchasingStatus = await ballchasing.ping();
+            switch (ballchasingStatus) {
+                case 200:
+                    console.debug(
+                        "Ballchasing API is avaible and we are authorized",
+                    );
+                    break;
+                case 401:
+                    console.error("Invalid ballchasing token, exiting");
+                    throw new Error();
+                case 500:
+                    console.error("Ballchasing API is unavaible, exiting");
+                    throw new Error();
+                default:
+                    console.debug(
+                        "Unsuported status code while pinging Ballchasing API, exiting",
+                        ballchasingStatus,
+                    );
+                    throw new Error();
+            }
+        } catch (err) {
+            throw new Error("An error occured while pinging ballchasing api", { cause: err });
+        }
 
-    // // STEP 4 -> FETCH REPLAY INFORMATIONS FROM BALLCHASING
-    // // CHANGE !! should parse replay binary header informations to get the players names, removes useless replayInfo class
-    // console.info("Fetching replay informations");
-    // let replayInfo: ReplayInfo;
-    // try {
-    //     replayInfo = new ReplayInfo(await ballchasing.getReplayInfo(ballchasingId));
-    // } catch (err) {
-    //     console.error(
-    //         "An error occured while fetching replay informations",
-    //         err,
-    //     );
-    //     Deno.exit(1);
-    // }
+        let ballchasingId: string | undefined;
+        if (config.inputMode === "BallchasingURL") {
+            ballchasingId = config.inputPath!.split("/")[4];
+        }
+        if (config.inputMode === "Random") {
+            // Find a replay -> need a new method in ballchasing class to handle that
+        }
+        if (ballchasingId === undefined) {
+            throw new Error();
+        }
 
-    // // STEP 5 -> PROMPT USER TO CHOOSE THE PLAYER TO GUESS
+        // DOWNLOADING REPLAY FILE
+        console.info("Downloading replay file");
+        let replay: { bin: Uint8Array; path: string | undefined };
+        try {
+            const { bin, path } = await ballchasing.downloadReplayFile(
+                ballchasingId,
+            );
+            replay = {
+                bin,
+                path,
+            };
+            replayBin = bin;
+        } catch (err) {
+            console.error("An error occured while downloading replay file", err);
+            throw new Error();
+        }
+        console.debug("Downloaded replay file", {
+            bin: !!replay.bin,
+            path: replay.path,
+        });
+    }
+    if (config.inputMode === "FilePath") {} // TODO
+    if (config.inputMode === "stdin") {} // TODO
+    if (!replayBin) {
+        throw new Error("An error occured we don't have any binaries :'(");
+    }
+
+    // STEP 4 -> DECODING REPLAY FILE
+    console.info("Decoding replay binaries");
+    let replayJson: Replay;
+    try {
+        replayJson = await rattletrap.decode(replayBin) as Replay;
+    } catch (err) {
+        console.error("An error occured while decoding replay binaries", err);
+        throw new Error();
+    }
+    console.debug("Decoded replay binary");
+
+    // STEP 5 -> PROMPT USER TO CHOOSE THE PLAYER TO GUESS !!FIXME!! + use cliffy prompt lib + should create the playerMap
     // async function selectPlayer(
     //     rl: readline.Interface,
     //     playersNames: string[],
@@ -155,42 +174,11 @@ export default async function (options: Options) {
     // rl.close();
     // console.debug("Selected player to guess", playerToGuess);
 
-    // // STEP 6 -> DOWNLOADING REPLAY FILE
-    // console.info("Downloading replay file");
-    // let replay: { bin: Uint8Array; path: string | undefined };
-    // try {
-    //     const { bin, path } = await ballchasing.downloadReplayFile(
-    //         ballchasingId,
-    //     );
-    //     replay = {
-    //         bin,
-    //         path,
-    //     };
-    // } catch (err) {
-    //     console.error("An error occured while downloading replay file", err);
-    //     Deno.exit(1);
-    // }
-    // console.debug("Downloaded replay file", {
-    //     bin: !!replay.bin,
-    //     path: replay.path,
-    // });
-
-    // // STEP 7 -> DECODING REPLAY FILE
-    // console.info("Decoding replay binaries");
-    // let replayJson: Replay;
-    // try {
-    //     replayJson = await rattletrap.decode(replay.bin) as Replay;
-    // } catch (err) {
-    //     console.error("An error occured while decoding replay binaries", err);
-    //     Deno.exit(1);
-    // }
-    // console.debug("Decoded replay binary");
-
-    // // STEP 8 -> ANONYMISE REPLAY
+    // STEP 6 -> ANONYMISE REPLAY
     // console.info("Anonymising replay");
     // replayJson = anonymiser(replayJson, "TESTREPLAYNAME", playerToGuess);
 
-    // // STEP 9 -> REENCODE REPLAY FILE
+    // STEP 7 -> REENCODE REPLAY FILE
     // console.info("Encoding modified replay binaries");
     // try {
     //     await rattletrap.encode(replayJson, `${workdir}/modified-${ballchasingId}.replay`);
@@ -198,8 +186,6 @@ export default async function (options: Options) {
     //     console.error("An error occured while encodign replay binaries", err);
     // }
     // console.debug("Encoded replay binaries");
-
-    // // STEP 10 -> PRODUCE TEXT FILE WITH REPLAY INFORMATIONS
 
     // return;
 }

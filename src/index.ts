@@ -1,3 +1,4 @@
+import { load } from "jsr:@std/dotenv";
 import command from "./Commands/default.ts";
 
 /*  TODOS
@@ -7,6 +8,7 @@ import command from "./Commands/default.ts";
  */
 
 try {
+    await load({ export: true });
     await command();
 } catch (err) {
     console.error(err);

@@ -1,15 +1,12 @@
 import { Command, ValidationError } from "@cliffy/command";
 import main from "../main.ts";
-
-export const validPlaylists = [
-    "BirminghamMajor",
-];
-export type Playlists = (typeof validPlaylists)[number];
+import { validPlaylists } from "../config.ts";
 
 export const NAME = "playlist";
 
 export default (nodes: string[]) => {
-    nodes.push(NAME);
+    const clonedNodes = [...nodes];
+    clonedNodes.push(NAME);
     return new Command()
         .description("Preconfigured playlist of ballchasing replays, will ignore --input option")
         .arguments("[playlist:string]")
@@ -29,6 +26,7 @@ export default (nodes: string[]) => {
                     `Unknown playlist "${playlist}". Check avaible playlist by using playlist --list command`,
                 );
             }
-            await main({ ...options, ...nodes.map((parent) => ({ [parent]: true })) });
+            const parents = Object.fromEntries(clonedNodes.map((parent) => [parent, true]));
+            await main({ ...options, ...parents });
         });
 };
