@@ -1,5 +1,5 @@
-import generatePlayerName from "../generatePlayerName.ts";
-import { ArrayValue, BoolValue, ByteValue, PropertieValue, QWordValue, StrValue } from "../anonymiser.ts";
+import generatePlayerName from "../../players.ts";
+import { ArrayValue, BoolValue, ByteValue, PropertieValue, QWordValue, ReplayConfig, StrValue } from "../anonymiser.ts";
 import PlayerIdKey from "./playerIdProperties.ts";
 import { findOptionnalKeys, findUnknownKeys } from "../utils.ts";
 
@@ -22,16 +22,13 @@ type StatArray = [
     PropertieValue<any>,
 ];
 
-function NameKey(element: PropertieValue<StrValue>, guestName: string): PropertieValue<StrValue> {
-    const newPlayerInfo = generatePlayerName(
-        element.value.str,
-        guestName,
-    );
+function NameKey(element: PropertieValue<StrValue>, replayConfig: ReplayConfig): PropertieValue<StrValue> {
+    const player = replayConfig.players.getPlayer(element.value.str);
     return {
         ...element,
-        size: newPlayerInfo.name.length,
+        size: element.size += player.getSizeDifference(),
         value: {
-            str: newPlayerInfo.name,
+            str: player.botName,
         },
     };
 }
@@ -73,7 +70,7 @@ function bBotKey(element: PropertieValue<BoolValue>): PropertieValue<BoolValue> 
 
 export default (
     element: PropertieValue<ArrayValue<StatArray>>,
-    guestName: string,
+    replayConfig: ReplayConfig,
 ): PropertieValue<ArrayValue<StatArray>> => {
     const array = element.value.array.map((stat) => {
         const elements: Map<StatKeys, PropertieValue<any>> = new Map(stat.elements.map((arr) => [arr[0], arr[1]]));
@@ -85,7 +82,7 @@ export default (
         elements.forEach((value, key) => {
             switch (key) {
                 case StatKeys.Name: {
-                    elements.set(key, NameKey(value, guestName));
+                    elements.set(key, NameKey(value, replayConfig));
                     break;
                 }
                 case StatKeys.Platform: {

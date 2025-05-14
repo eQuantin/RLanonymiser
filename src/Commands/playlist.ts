@@ -1,6 +1,6 @@
 import { Command, ValidationError } from "@cliffy/command";
 import main from "../main.ts";
-import { validPlaylists } from "../config.ts";
+import { type Playlists, validPlaylists } from "../config.ts";
 
 export const NAME = "playlist";
 
@@ -21,7 +21,7 @@ export default (nodes: string[]) => {
                 console.log(validPlaylists);
                 return;
             }
-            if (playlist && !validPlaylists.includes(playlist)) {
+            if (playlist && !validPlaylists.includes(playlist as Playlists)) {
                 throw new ValidationError(
                     `Unknown playlist "${playlist}". Check avaible playlist by using playlist --list command`,
                 );

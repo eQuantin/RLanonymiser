@@ -1,16 +1,25 @@
 import * as log from "jsr:@timepp/enhanced-deno-log";
+import { Players } from "./players.ts";
 
+// Regular expression for validating Ballchasing replay URLs
 export const BallchasingUrlRegex = new RegExp(/((https|http):\/\/ballchasing\.com\/replay\/.+)/);
+
+// Regular expression for validating replay file paths
 export const pathRegex = new RegExp(
-    /((\/.*|[a-zA-Z]:\\(?:([^<>:"\/\\|?*]*[^<>:"\/\\|?*.]\\|..\\)*([^<>:"\/\\|?*]*[^<>:"\/\\|?*.]\\?|..\\))?)\.replay)/iy,
+    String.raw`^([a-zA-Z]:\\|\\\\|\.{1,2}\\/)?([^<>:"/\\|?*]+[/\\])*[^<>:"/\\|?*]+\.replay$`,
+    "i",
 );
+
+// Regular expression for validating Discord webhook URLs
 export const DiscordWebhookRegex = new RegExp(/((https|http):\/\/discord\.com\/api\/webhooks\/\d{19}\/.+)/);
 
+// Valid playlists for replay analysis
 export const validPlaylists = [
     "BirminghamMajor",
-];
+] as const;
 export type Playlists = (typeof validPlaylists)[number];
 
+// Valid regions for replay analysis
 export const validLocations = [
     "EU",
     "NA",
@@ -22,6 +31,7 @@ export const validLocations = [
 ] as const;
 export type Locations = (typeof validLocations)[number];
 
+// Valid ranks for replay analysis
 export const validRanks = [
     "unranked",
     "b1",
@@ -49,53 +59,82 @@ export const validRanks = [
 ] as const;
 export type Ranks = (typeof validRanks)[number];
 
-// Constants for season limits
-const PAID_SEASON_MIN = 1;
-const PAID_SEASON_MAX = 14;
-const FREE_SEASON_MIN = 1;
-export const LATEST_SEASON = "f16";
+// Configuration constants for season validation
+export const SEASON_CONFIG = {
+    PAID: {
+        MIN: 1,
+        MAX: 14,
+    },
+    FREE: {
+        MIN: 1,
+    },
+    LATEST: "f16",
+} as const;
 
-// Function to check if a season is valid
+/**
+ * Validates if a season string is in the correct format and within valid ranges
+ * @param season - The season string to validate (e.g., "f16" or "14")
+ * @returns boolean indicating if the season is valid
+ */
 export const isValidSeason = (season: string): boolean => {
     const isFree2Play = season.charAt(0).toLowerCase() === "f";
     const seasonNumber = Number(season.slice(1));
 
     if (isFree2Play) {
-        const latestSeasonNumber = Number(LATEST_SEASON.slice(1));
-        return seasonNumber >= FREE_SEASON_MIN && seasonNumber <= latestSeasonNumber;
+        const latestSeasonNumber = Number(SEASON_CONFIG.LATEST.slice(1));
+        return seasonNumber >= SEASON_CONFIG.FREE.MIN && seasonNumber <= latestSeasonNumber;
     } else {
-        return seasonNumber >= PAID_SEASON_MIN && seasonNumber <= PAID_SEASON_MAX;
+        return seasonNumber >= SEASON_CONFIG.PAID.MIN && seasonNumber <= SEASON_CONFIG.PAID.MAX;
     }
 };
 
-export type Options = {
-    debug?: true;
-    verbose?: true;
-    output?: string | true;
-    input?: string | true;
+/**
+ * Command line options interface
+ */
+export interface Options {
+    /** Enable debug logging */
+    debug?: boolean;
+    /** Enable verbose logging */
+    verbose?: boolean;
+    /** Output destination */
+    output?: string | boolean;
+    /** Input source */
+    input?: string | boolean;
+    /** Ballchasing API token */
     token?: string;
+    /** Custom replay name */
     replayName?: string;
+    /** Number of replays to process */
     number?: number;
+    /** Season filter */
     season?: string;
+    /** Region filter */
     location?: Locations;
+    /** Rank filter */
     rank?: Ranks;
-    reversed?: true;
-    playlist?: string;
-    random?: true;
-    all?: true;
-    guest?: true;
-};
+    /** Process replays in reverse order */
+    reversed?: boolean;
+    /** Playlist filter */
+    playlist?: Playlists;
+    /** Select random replays */
+    random?: boolean;
+    /** Process all replays */
+    all?: boolean;
+    /** Process guest replays */
+    guest?: boolean;
+}
 
-const uuid = crypto.randomUUID();
-
-export type Config = {
+/**
+ * Configuration interface for the application
+ */
+export interface Config {
     debug: boolean;
     verbose: boolean;
     inputMode: "BallchasingURL" | "FilePath" | "Random" | "stdin";
     outputMode: "FilePath" | "DiscordWebhook" | "stdout";
     mode: "Guest" | "ReversedGuest" | "All" | "ReplayValidation";
     token: string | undefined;
-    playersNameMap: Map<string, string>;
+    players: Players | undefined;
     inputPath: string | undefined;
     outputPath: string | undefined;
     replayName: string;
@@ -109,9 +148,14 @@ export type Config = {
         number: number;
     };
     uuid: string;
-};
+}
 
-const defaultConfig: Config = {
+const uuid = crypto.randomUUID();
+
+/**
+ * Default configuration object
+ */
+const defaultConfig: Config = Object.freeze({
     inputMode: "stdin",
     outputMode: "stdout",
     mode: "ReplayValidation",
@@ -120,12 +164,18 @@ const defaultConfig: Config = {
     token: undefined,
     inputPath: undefined,
     outputPath: undefined,
-    playersNameMap: new Map([]),
+    players: undefined,
     replayName: `Anonymised replay #${uuid}`,
     replayOptions: { number: 1 },
     uuid,
-};
+});
 
+/**
+ * Creates a configuration object from command line options
+ * @param options - Command line options
+ * @returns Configuration object
+ * @throws Error if required configuration is missing or invalid
+ */
 export default (options: Options): Config => {
     console.log("Options", options);
 
@@ -138,12 +188,12 @@ export default (options: Options): Config => {
 
     const config: Config = {
         ...defaultConfig,
-        debug: options.debug || defaultConfig.debug,
-        verbose: options.verbose || defaultConfig.verbose,
-        token: Deno.env.get("TOKEN") || options.token,
-        replayName: options.replayName || defaultConfig.replayName,
+        debug: options.debug ?? defaultConfig.debug,
+        verbose: options.verbose ?? defaultConfig.verbose,
+        token: Deno.env.get("TOKEN") ?? options.token,
+        replayName: options.replayName ?? defaultConfig.replayName,
         replayOptions: {
-            number: options.number || defaultConfig.replayOptions.number,
+            number: options.number ?? defaultConfig.replayOptions.number,
             custom: {
                 location: options.location,
                 rank: options.rank,
@@ -153,54 +203,75 @@ export default (options: Options): Config => {
         },
     };
 
+    // Set operation mode
     if (options.guest && options.reversed) config.mode = "ReversedGuest";
     else if (options.guest && !options.reversed) config.mode = "Guest";
     else if (options.all) config.mode = "All";
     else config.mode = "ReplayValidation";
 
-    if (options.input === true || options.input === undefined) config.inputMode = "stdin";
-    else {
+    // Set input mode and validate input
+    if (options.input === true || options.input === undefined) {
+        config.inputMode = "stdin";
+    } else if (typeof options.input === "string") {
         const matchPath = pathRegex.test(options.input);
         const matchBallchasingUrl = BallchasingUrlRegex.test(options.input);
-        console.debug("regexr match", {
+
+        console.debug("regex match", {
             matchPath,
             matchBallchasingUrl,
         });
+
         if (matchPath && matchBallchasingUrl) {
-            console.debug("suspicous input", {
+            console.debug("suspicious input", {
                 matchBallchasingUrl,
                 matchPath,
                 inputString: options.input,
             });
-        } else if (matchBallchasingUrl && !matchPath) config.inputMode = "BallchasingURL";
-        else if (!matchBallchasingUrl && matchPath) config.inputMode = "FilePath";
+        } else if (matchBallchasingUrl && !matchPath) {
+            config.inputMode = "BallchasingURL";
+        } else if (!matchBallchasingUrl && matchPath) {
+            config.inputMode = "FilePath";
+        }
         config.inputPath = options.input;
     }
-    if (options.random || options.playlist) config.inputMode = "Random";
 
-    if (options.output === true || options.output === undefined) config.outputMode = "stdout";
-    else {
+    if (options.random || options.playlist) {
+        config.inputMode = "Random";
+    }
+
+    // Set output mode and validate output
+    if (options.output === true || options.output === undefined) {
+        config.outputMode = "stdout";
+    } else if (typeof options.output === "string") {
         const matchPath = pathRegex.test(options.output);
         const matchDiscordWebhook = DiscordWebhookRegex.test(options.output);
+
         if (matchDiscordWebhook && matchPath) {
-            console.debug("suspicous output", {
+            console.debug("suspicious output", {
                 matchDiscordWebhook,
                 matchPath,
                 outputString: options.output,
             });
-        } else if (matchDiscordWebhook && !matchPath) config.outputMode = "DiscordWebhook";
-        else if (!matchDiscordWebhook && matchPath) config.outputMode = "FilePath";
+        } else if (matchDiscordWebhook && !matchPath) {
+            config.outputMode = "DiscordWebhook";
+        } else if (!matchDiscordWebhook && matchPath) {
+            config.outputMode = "FilePath";
+        }
         config.outputPath = options.output;
     }
 
-    if (
-        !(Deno.env.has("TOKEN") || options.token) &&
-        (config.inputMode == "BallchasingURL" || config.inputMode == "Random")
-    ) {
-        console.error(
+    // Validate token requirement
+    if (!config.token && (config.inputMode === "BallchasingURL" || config.inputMode === "Random")) {
+        throw new Error(
             "You need to provide a ballchasing token, either with --token option or in env",
         );
-        Deno.exit(0);
+    }
+
+    // Validate playlist if provided
+    if (options.playlist && !validPlaylists.includes(options.playlist)) {
+        throw new Error(
+            `Invalid playlist: ${options.playlist}. Valid playlists are: ${validPlaylists.join(", ")}`,
+        );
     }
 
     console.debug("Config", config);

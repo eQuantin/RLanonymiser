@@ -1,5 +1,5 @@
 import anonymiseLoadout from "../anonymiseLoadout.ts";
-import generatePlayerName from "../generatePlayerName.ts";
+import generatePlayerName from "../../players.ts";
 
 type ReplicatedValue = {
     id: {

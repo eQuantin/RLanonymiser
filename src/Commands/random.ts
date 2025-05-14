@@ -1,6 +1,6 @@
 import { Command, ValidationError } from "@cliffy/command";
 import main from "../main.ts";
-import { isValidSeason, LATEST_SEASON, Locations, Ranks, validLocations, validRanks } from "../config.ts";
+import { isValidSeason, Locations, Ranks, SEASON_CONFIG, validLocations, validRanks } from "../config.ts";
 
 export const NAME = "random";
 
@@ -18,7 +18,7 @@ export default (nodes: string[]) => {
         .option(
             "-s, --season=<season:string>",
             `Season from which to select a replay', default to latest season supported. Use season number preceded by
-                an 'f' for free to play seasons. Latest supported season: ${LATEST_SEASON}`,
+                an 'f' for free to play seasons. Latest supported season: ${SEASON_CONFIG.LATEST}`,
             {
                 value: (season: string): string => {
                     if (!isValidSeason(season)) {

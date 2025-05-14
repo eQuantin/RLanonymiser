@@ -5,6 +5,7 @@ import { Ballchasing } from "./ballchasing.ts";
 import { Rattletrap } from "./rattletrap.ts";
 import anonymiser, { Replay } from "./Anonymiser/anonymiser.ts";
 import Config, { Options } from "./config.ts";
+import { Players } from "./players.ts";
 
 export default async function (options: Options) {
     const config = Config(options);
@@ -32,27 +33,24 @@ export default async function (options: Options) {
     // STEP 2 -> INSTALL RATTLETRAP
     console.info("Checking Rattletrap installation and version");
     try {
-        const currentRattletrapVersion = await rattletrap
-            .checkRattletrapVersion();
+        const currentRattletrapVersion = await rattletrap.checkRattletrapVersion();
         if (currentRattletrapVersion == null) {
-            console.debug(
-                "Rattletrap isn't installed. Installing Rattletrap ...",
-            );
+            console.debug("Rattletrap is not installed. Installing Rattletrap...");
             await rattletrap.downloadRattletrap();
         } else if (rattletrap.version != currentRattletrapVersion) {
             console.debug(
-                `Invalid Rattletrap version, expected version ${rattletrap.version} but got version ${currentRattletrapVersion},
-                    updating/downgrading Rattletrap ...`,
+                `Rattletrap version mismatch. Expected version ${rattletrap.version}, but found version ${currentRattletrapVersion}. Updating Rattletrap...`,
             );
             Deno.removeSync(rattletrap.path);
             await rattletrap.downloadRattletrap();
         }
     } catch (err) {
-        console.error(
-            "An error occured while checking or installing Rattletrap",
-            err,
+        console.error("Failed to check or install Rattletrap:", err);
+        throw new Error(
+            `Rattletrap installation or update failed: ${
+                (err as Error).message
+            }. Please ensure you have sufficient permissions and a stable internet connection.`,
         );
-        throw new Error();
     }
 
     // STEP 3 -> RETRIEVE REPLAYY BINARIES
@@ -112,16 +110,44 @@ export default async function (options: Options) {
             };
             replayBin = bin;
         } catch (err) {
-            console.error("An error occured while downloading replay file", err);
-            throw new Error();
+            console.error(
+                `Failed to download replay file with ID ${ballchasingId} from ballchasing.com`,
+                err,
+            );
+            throw new Error("Failed to download replay file", { cause: err });
         }
         console.debug("Downloaded replay file", {
             bin: !!replay.bin,
             path: replay.path,
         });
     }
-    if (config.inputMode === "FilePath") {} // TODO
-    if (config.inputMode === "stdin") {} // TODO
+    if (config.inputMode === "FilePath") {
+        try {
+            replayBin = await Deno.readFile(config.inputPath!);
+        } catch (err) {
+            console.error("Failed to read replay file from path:", config.inputPath, err);
+            throw new Error("Could not read replay file", { cause: err });
+        }
+    }
+    if (config.inputMode === "stdin") {
+        try {
+            const buffer = new Uint8Array(1024);
+            let result = new Uint8Array();
+            while (true) {
+                const numberOfBytesRead = await Deno.stdin.read(buffer);
+                if (numberOfBytesRead === null) break;
+                const chunk = buffer.slice(0, numberOfBytesRead);
+                result = new Uint8Array([...result, ...chunk]);
+            }
+            if (result.length === 0) {
+                throw new Error("No data received from stdin");
+            }
+            replayBin = result;
+        } catch (err) {
+            console.error("Failed to read replay file from stdin:", err);
+            throw new Error("Could not read replay file from stdin", { cause: err });
+        }
+    }
     if (!replayBin) {
         throw new Error("An error occured we don't have any binaries :'(");
     }
@@ -137,7 +163,12 @@ export default async function (options: Options) {
     }
     console.debug("Decoded replay binary");
 
+    // STEP 5 -> PARSE PLAYERS NAMES FROM REPLAY JSON
+    const players = new Players(replayJson.content.players.map((player) => player.name));
+    config.players = players;
     // STEP 5 -> PROMPT USER TO CHOOSE THE PLAYER TO GUESS !!FIXME!! + use cliffy prompt lib + should create the playerMap
+    // assign each player a bot name
+
     // async function selectPlayer(
     //     rl: readline.Interface,
     //     playersNames: string[],
@@ -175,8 +206,8 @@ export default async function (options: Options) {
     // console.debug("Selected player to guess", playerToGuess);
 
     // STEP 6 -> ANONYMISE REPLAY
-    // console.info("Anonymising replay");
-    // replayJson = anonymiser(replayJson, "TESTREPLAYNAME", playerToGuess);
+    console.info("Anonymising replay");
+    replayJson = anonymiser(replayJson, config.replayName, playerToGuess);
 
     // STEP 7 -> REENCODE REPLAY FILE
     // console.info("Encoding modified replay binaries");

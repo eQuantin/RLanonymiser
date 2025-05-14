@@ -1,5 +1,6 @@
-import contentBodyFrames, { Frame } from "./ContentBodyFrames/contentBodyFrames.ts";
-import { botNames } from "./generatePlayerName.ts";
+import { ReplayConfig } from "./anonymiser.ts";
+import contentBodyFrames, { Frame } from "./Content/contentBodyFrames.ts";
+import { botNames } from "../players.ts";
 import keyFrames, { KeyFrame } from "./keyFrames.ts";
 
 type Cache = {
@@ -38,7 +39,7 @@ export type Content = {
     size: number;
 };
 
-export default (content: Content, guestName: string): Content => {
+export default (content: Content, replayConfig: ReplayConfig): Content => {
     const addedSize = botNames.map((x) =>
         (x.savedPlayer !== null ? x.savedPlayer.length - x.name.length : x.name.length) * x.changed
     ).reduce((x, y) => x + y);

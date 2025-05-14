@@ -1,75 +1,43 @@
-import anoContent, { Content } from "./content.ts";
-import { resetBotNames } from "./generatePlayerName.ts";
-import anoHeader, { Header } from "./header.ts";
-
-export enum ValueKind {
-    IntProperty = "IntProperty",
-    StrProperty = "StrProperty",
-    BoolProperty = "BoolProperty",
-    FloatProperty = "FloatProperty",
-    QWordProperty = "QWordProperty",
-    ByteProperty = "ByteProperty",
-    ArrayProperty = "ArrayProperty",
-    NameProperty = "NameProperty",
-    StructProperty = "StructProperty",
-}
-
-export type PropertieValue<T> = {
-    index: number;
-    kind: ValueKind;
-    size: number;
-    value: T;
-};
-export type IntValue = { int: number };
-export type StrValue = { str: string };
-export type BoolValue = { bool: 0 | 1 };
-export type FloatValue = {
-    float: number;
-};
-export type QWordValue = {
-    q_word: string;
-};
-export type ByteValue = {
-    byte: any;
-};
-export type ArrayValue<T> = {
-    array: {
-        elements: T[];
-        last_key: "None";
-    }[];
-};
-export type NameValue = {
-    name: string;
-};
-export type StructValue<T> = {
-    struct: {
-        fields: {
-            elements: T[];
-            last_key: "None";
-        };
-        name: string;
-    };
-};
+import AbstractAnonymiser, { ReplayConfig } from "./abstractAnonymiser.ts";
+import { Content } from "./content.ts";
+import HeaderAnonymiser, { Header } from "./Header/header.ts";
 
 export type Replay = {
-    $schema: never;
     content: Content;
     header: Header;
 };
 
-export default (replay: Replay, replayName: string, guestName: string): Replay => {
-    // $schema can be ignored
+export default class ReplayAnonymiser extends AbstractAnonymiser<Replay> {
+    // Data
+    private content: Content;
+    private header: Header;
 
-    const content = anoContent(replay.content, guestName);
+    // Anonymisers
+    private headerAnonymiser: HeaderAnonymiser;
 
-    // reset botnames counters
-    resetBotNames();
+    constructor(replay: Replay, replayConfig: ReplayConfig) {
+        super(replayConfig, 0);
+        this.content = replay.content;
+        this.header = replay.header;
+        this.headerAnonymiser = new HeaderAnonymiser(replay.header, this.replayConfig);
+    }
 
-    const header = anoHeader(replay.header, replayName, guestName);
+    public anonymise(): void {
+        this.headerAnonymiser.anonymise();
+        this.header = this.headerAnonymiser.convert();
+        this.updateSize();
+    }
 
-    return {
-        $schema: replay.$schema,
-        content,
-        header,
-    };
-};
+    public updateSize(): void {
+        let newSize = this.originalSize;
+        newSize += this.headerAnonymiser.getSizeDifference();
+        this.size = newSize;
+    }
+
+    public convert(): Replay {
+        return {
+            content: this.content,
+            header: this.header,
+        };
+    }
+}

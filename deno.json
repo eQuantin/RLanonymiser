@@ -11,5 +11,13 @@
         "indentWidth": 4,
         "semiColons": true,
         "singleQuote": false
-    }
+    },
+    "compilerOptions": {
+        "types": [
+            "deno"
+        ]
+    },
+    "unstable": [
+        "sloppy-imports"
+    ]
 }
